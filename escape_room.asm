@@ -11,6 +11,7 @@ start:
 ; Read beam sensor
 push8 #IO_SENSOR
 io
+pop8 type
 popf beam
 
 ; Closer we get to things slow down
@@ -31,5 +32,6 @@ io
 
 jmp start
 
+type: db8 #0
 beam: dbf 0.0
 wander: dbf 0.0
