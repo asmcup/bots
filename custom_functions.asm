@@ -1,23 +1,42 @@
 ; Examples of how to create custom functions.
 ;
+; Quick preliminary note:
+; The examples below show how to make reusable functions, i.e. functions you
+; can call from anywhere. Sometimes you may only need to call a function from
+; one place (but you should have a good reason for not "inlining" the function
+; in that case), which can of course be accomplished in a dead simple way:
+
+jmp function
+doneWithFunction:
+; [code]
+
+function:
+; [do stuff]
+jmp doneWithFunction
+
+; The rest of this file deals with the harder cases of "reusable" functions.
+;
+; ################################################################################
+; 
 ; A key feature of a function is that you can call it from wherever you want,
 ; your code will resume after the function call. To achieve this, the address
 ; of the call site (return address) must be stored somewhere.
 ;
 ; On a very basic level, that may be achieved like this:
 
-ret: db8 #0     ; Somewhere to store the return address
+ret: db8 #0      ; Somewhere to store the return address
 
-push8 #3        ; second argument
-push8 #4        ; first argument
-push8 #callSite1
+push8 #3         ; second argument
+push8 #4         ; first argument
+push8 &callSite1
 jmp myFunction
-callSite1: ; [more code]
+callSite1:
+; [more code]
 
 myFunction:
-pop8 ret        ; store the return address
-sub8            ; do whatever you want to do with the arguments
-jmp [ret]       ; back to the call site
+pop8 ret         ; store the return address
+sub8             ; do whatever you want to do with the arguments
+jmp [ret]        ; back to the call site
 
 ; In this example, you'd have to place a label after every "function call" and
 ; push that label onto the stack just before jumping to the function.
@@ -28,18 +47,18 @@ jmp [ret]       ; back to the call site
 ; There is an instruction that greatly simplifies this process: jsr
 ; Let's adapt the above example for illustration:
 
-ret: db8 #0     ; Somewhere to store the return address
+return: db8 #0   ; Somewhere to store the return address
 
-push8 #3        ; second argument
-push8 #4        ; first argument
-push8 #myFunction
-jsr
-; [more code]
+push8 #3         ; second argument
+push8 #4         ; first argument
+push8 &myOtherFunction
+jsr              ; "Jump subroutine" - pop the target address from the stack,
+; [more code]    ; push the current address+1 on the stack, jump to the target
 
-myFunction:
-pop8 ret        ; store the return address
-sub8            ; do whatever you want to do with the arguments
-jmp [ret]       ; back to the call site
+myOtherFunction:
+pop8 return      ; store the return address
+sub8             ; do whatever you want to do with the arguments
+jmp [return]     ; back to the call site
 
 ; What jsr actually does is 1. pop the target function address from the stack,
 ; 2. push the address of the instruction following it on the stack and finally
@@ -61,7 +80,7 @@ jmp [ret]       ; back to the call site
 eax: db8 #0    ; general purpose "register"
 retval: db8 #0 ; return "register"
 
-push8 #callSite2
+push8 &callSite2
 push8 #3        ; second argument
 push8 #4        ; first argument
 jmp mySafeFunction
@@ -70,8 +89,8 @@ callSite2: ; [more code]
 ; Function definition
 mySafeFunction:
 sub8        ; do whatever you want here, including calling other functions
-pop8 ret    ; set return "register"
-pop8 eax    ; fetch return address (can't directly use stack value as jump target atm)
+pop8 retval ; set return "register"
+pop8 eax    ; fetch return address (can't directly use stack value as jump target)
 jmp [eax]   ; jump to call site
 
 ; Note also that jsr can't be used here, because that would place the return address
@@ -88,3 +107,6 @@ jmp [eax]   ; jump to call site
 ; For complex/recursive functions, make sure to keep the return address as low as
 ; possible on the stack and only pop it right before jumping back. Or know your
 ; stuff well enough to be sure whatever you come up with works.
+
+; TODO: We now have fetch instructions (ft8, ftf)! These make "reorganizing the
+; stack" a great deal more manageable.
